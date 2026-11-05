@@ -66,6 +66,28 @@
   .paper { position: fixed; z-index: 6; width: 120px; padding: 8px; background: #f5ecd6; color: #3b2f22; font-size: 11px; line-height: 1.4; border-radius: 3px; box-shadow: 0 4px 14px rgba(0,0,0,0.4); pointer-events: none; overflow: hidden; max-height: 70px; }
   .smokeText { position: fixed; z-index: 6; transform: translate(-50%, 0); color: rgba(220, 220, 230, 0.9); font-size: 14px; max-width: 260px; text-align: center; pointer-events: none; text-shadow: 0 0 8px rgba(255,255,255,0.4); }
 
+  /* 사람들 */
+  #online { color: var(--dim); white-space: nowrap; }
+  #emotes { display: flex; align-items: center; gap: 4px; padding: 0 8px 8px; flex-wrap: wrap; }
+  .emo { width: 36px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,0.05); cursor: pointer; font-size: 17px; line-height: 1; padding: 0; }
+  .emo:hover { background: rgba(255,255,255,0.12); }
+  #moveHint { margin-left: auto; font-size: 11px; color: var(--dim); }
+  #say { position: fixed; left: 50%; bottom: 50%; transform: translate(-50%, 50%); width: min(380px, calc(100% - 32px)); padding: 10px; z-index: 8; display: none; gap: 6px; }
+  #say[data-open] { display: flex; }
+  #say input { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); color: var(--text); font: inherit; font-size: 14px; }
+  #say .btn { flex: 0 0 auto; }
+  #labels { position: fixed; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+  .tag { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 3px; white-space: nowrap; will-change: transform; }
+  .tag .nm { font-size: 11px; color: rgba(241,233,216,0.75); text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+  .tag .nm.me { color: var(--accent); }
+  .tag .bb { max-width: 220px; white-space: normal; text-align: center; font-size: 13px; padding: 6px 10px; border-radius: 12px; background: rgba(241,233,216,0.9); color: #2a1f14; opacity: 0; transition: opacity .3s; }
+  .tag .bb.on { animation: bubble 6s ease-out forwards; }
+  @keyframes bubble { 0% { opacity: 0; transform: translateY(6px); filter: blur(0); } 8% { opacity: 1; transform: translateY(0); } 70% { opacity: .9; filter: blur(0); } 100% { opacity: 0; transform: translateY(-28px); filter: blur(5px); } }
+  .tag .em { font-size: 26px; opacity: 0; }
+  .tag .em.on { animation: emote 2.2s ease-out forwards; }
+  @keyframes emote { 0% { opacity: 0; transform: translateY(8px) scale(.6); } 15% { opacity: 1; transform: translateY(0) scale(1.1); } 80% { opacity: 1; transform: translateY(-6px) scale(1); } 100% { opacity: 0; transform: translateY(-22px) scale(.9); } }
+  body.cinema #labels { opacity: 0; }
+
   /* 대문(타이틀) 화면 */
   #gate { position: fixed; inset: 0; z-index: 20; background: #0a1a3a; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; transition: opacity 1.4s ease; }
   #gate.hide { opacity: 0; pointer-events: none; }
@@ -114,19 +136,30 @@
   <div id="status" class="panel">
     <span>불 상태 <b id="stateName">적정 불</b></span>
     <span id="fuelBar"><i id="fuelFill"></i></span>
+    <span id="online">혼자</span>
     <span id="sleepInfo" hidden></span>
   </div>
   <div class="panel">
     <div id="actions">
       <button class="btn primary" id="btnLog">장작 넣기</button>
       <button class="btn" id="btnAurora">오로라 가루</button>
+      <button class="btn" id="btnSay">말하기</button>
       <button class="btn" id="btnCinema">불멍 모드</button>
       <button class="btn" id="btnWorry">고민 태우기</button>
       <button class="btn" id="btnSound">소리 켜기</button>
     </div>
+    <div id="emotes">
+      <button class="emo" data-emote="👋" aria-label="손 흔들기">👋</button>
+      <button class="emo" data-emote="🙂" aria-label="미소">🙂</button>
+      <button class="emo" data-emote="❤️" aria-label="하트">❤️</button>
+      <button class="emo" data-emote="🎵" aria-label="음표">🎵</button>
+      <button class="emo" data-emote="😴" aria-label="졸림">😴</button>
+      <span id="moveHint">바닥을 누르면 걷고, 통나무를 누르면 앉아요</span>
+    </div>
     <details id="mixer">
-      <summary>소리 섞기 · 수면 타이머</summary>
+      <summary>소리 섞기 · 수면 타이머 · 이름</summary>
       <div class="mix">
+        <label for="myName">이름</label><input id="myName" type="text" maxlength="16" placeholder="숲속 이름">
         <label for="mFire">모닥불</label><input id="mFire" type="range" min="0" max="1" step="0.01" value="0.7">
         <label for="mCricket">밤벌레</label><input id="mCricket" type="range" min="0" max="1" step="0.01" value="0.5">
         <label for="mWind">바람</label><input id="mWind" type="range" min="0" max="1" step="0.01" value="0.4">
@@ -146,6 +179,12 @@
 <button class="btn panel" id="exitCinema">화면을 누르거나 ESC · 불멍 모드 나가기</button>
 <div id="dim"></div>
 <div id="toast" role="status"></div>
+
+<form id="say" class="panel" autocomplete="off">
+  <input id="sayText" type="text" maxlength="60" placeholder="말풍선은 연기처럼 사라져요" aria-label="말하기">
+  <button class="btn primary" type="submit">말하기</button>
+</form>
+<div id="labels" aria-hidden="true"></div>
 
 <div id="worry" class="panel" role="dialog" aria-labelledby="worryTitle">
   <p id="worryTitle">털어놓고 싶은 생각을 적고 불에 던지세요. 어디에도 저장되지 않고 연기로 사라집니다.</p>
@@ -277,15 +316,23 @@ for (let i = 0; i < 80; i++) {
   scene.add(tent);
 }
 
-// 앉는 통나무 세 개
+// 앉는 통나무 세 개 (통나무당 자리 2개)
 const seatGeo = new THREE.CylinderGeometry(0.22, 0.22, 1.7, 9);
 const seatMat = mat(0x4a301c);
-[Math.PI / 2, Math.PI / 2 + 2.1, Math.PI / 2 - 2.1].forEach((a) => {
+const seatLogs = [];
+const SEATS = [];
+[Math.PI / 2, Math.PI / 2 + 2.1, Math.PI / 2 - 2.1].forEach((a, li) => {
   const s = new THREE.Mesh(seatGeo, seatMat);
   s.position.set(Math.cos(a) * 2.4, 0.22, Math.sin(a) * 2.4);
   s.rotation.z = Math.PI / 2;
   s.rotation.y = -a;
+  s.userData.log = li;
   scene.add(s);
+  seatLogs.push(s);
+  const tx = -Math.sin(a), tz = Math.cos(a);
+  [-0.45, 0.45].forEach((off) => {
+    SEATS.push({ x: s.position.x + tx * off, z: s.position.z + tz * off, log: li });
+  });
 });
 
 // 돌 테두리
@@ -499,12 +546,12 @@ function updateParticles(dt) {
 /* ================= 장작 던지기 ================= */
 const flying = [];
 const throwGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.7, 7);
-function throwLog() {
+function throwLog(fromVec, addFuel = true) {
   const mesh = new THREE.Mesh(throwGeo, seatMat);
-  const from = camera.position.clone().add(new THREE.Vector3(0, -0.35, 0));
+  const from = fromVec ? fromVec.clone() : camera.position.clone().add(new THREE.Vector3(0, -0.35, 0));
   mesh.position.copy(from);
   scene.add(mesh);
-  flying.push({ mesh, t: 0, from, to: new THREE.Vector3(rand(-0.15, 0.15), 0.35, rand(-0.15, 0.15)), spin: new THREE.Vector3(rand(2, 5), rand(1, 3), rand(2, 5)) });
+  flying.push({ mesh, t: 0, from, addFuel, to: new THREE.Vector3(rand(-0.15, 0.15), 0.35, rand(-0.15, 0.15)), spin: new THREE.Vector3(rand(2, 5), rand(1, 3), rand(2, 5)) });
 }
 function updateFlying(dt) {
   for (let i = flying.length - 1; i >= 0; i--) {
@@ -517,7 +564,7 @@ function updateFlying(dt) {
     if (t >= 1) {
       scene.remove(o.mesh);
       flying.splice(i, 1);
-      state.fuel = Math.min(100, state.fuel + 22);
+      if (o.addFuel) state.fuel = Math.min(100, state.fuel + 22);
       burst(40, 0);
       audio.pop(1); setTimeout(() => audio.pop(0.8), 90); setTimeout(() => audio.pop(0.6), 220);
     }
@@ -620,11 +667,11 @@ const audio = {
     osc.connect(lp).connect(g).connect(dest);
     osc.start(t); osc.stop(t + dur + 0.05);
   },
-  kalimba(i) {
-    if (!this.running) return;
+  kalimba(i, vol = 0.45) {
+    if (!this.running || !KALIMBA[i]) return;
     const f = KALIMBA[i], t = this.ctx.currentTime;
-    this.pluck(f, t, this.g.inst, { type: 'sine', vol: 0.45, dur: 1.7, bright: 3200 });
-    this.pluck(f * 3.97, t, this.g.inst, { type: 'sine', vol: 0.07, dur: 0.35, bright: 6000 });
+    this.pluck(f, t, this.g.inst, { type: 'sine', vol, dur: 1.7, bright: 3200 });
+    this.pluck(f * 3.97, t, this.g.inst, { type: 'sine', vol: vol * 0.15, dur: 0.35, bright: 6000 });
   },
   tick(dt) {
     if (!this.running) return;
@@ -687,12 +734,13 @@ function fireScreenPos() {
   return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
 }
 
-$('#btnLog').addEventListener('click', () => { throwLog(); });
+$('#btnLog').addEventListener('click', () => { throwLog(me.headWorld(), !net.on); net.addLog(); });
 $('#btnAurora').addEventListener('click', () => {
   if (state.aurora > 0) return;
   state.aurora = 25;
   $('#btnAurora').disabled = true;
   burst(60, 10);
+  net.setAurora();
   toast('오로라 가루를 뿌렸어요');
 });
 $('#btnSound').addEventListener('click', () => audio.toggle());
@@ -707,6 +755,7 @@ function enterCinema() {
 function exitCinema() {
   if (!state.cinema) return;
   state.cinema = false;
+  state.cinemaExitAt = performance.now();
   controls.enabled = true;
   controls.target.set(0, 0.7, 0);
   document.body.classList.remove('cinema');
@@ -738,6 +787,7 @@ function burnWorry() {
     paper.remove();
     burst(35, 45);
     audio.pop(1); setTimeout(() => audio.pop(0.7), 120);
+    net.event('worry');
     state.fuel = Math.min(100, state.fuel + 3);
     const p = fireScreenPos();
     const st = document.createElement('div');
@@ -770,9 +820,9 @@ $('#sleep').addEventListener('change', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
-  if (e.key === 'Escape') { exitCinema(); $('#worry').removeAttribute('data-open'); return; }
+  if (e.key === 'Escape') { exitCinema(); $('#worry').removeAttribute('data-open'); $('#say').removeAttribute('data-open'); return; }
   const n = Number(e.key);
-  if (n >= 1 && n <= 7) { audio.start(); audio.kalimba(n - 1); }
+  if (n >= 1 && n <= 7) { audio.start(); audio.kalimba(n - 1); net.event('note', { i: n - 1 }); }
 });
 
 // 첫 조작에서 소리 켜기 (브라우저 자동재생 정책)
@@ -789,6 +839,266 @@ $('#enter').addEventListener('click', () => {
   gate.classList.add('hide');
   burst(30, 0);
   setTimeout(() => gate.remove(), 1600);
+});
+
+/* ================= 캐릭터 ================= */
+const PALETTE = ['#f28ca0', '#7fc8f8', '#ffd166', '#9bde7e', '#c9a7eb', '#ffa07a', '#8ed1c1', '#f5b5e0'];
+const ADJ = ['고요한', '졸린', '따뜻한', '느긋한', '포근한', '반짝이는', '조용한', '살금살금', '몽글몽글', '나른한'];
+const ANIMAL = ['여우', '곰', '토끼', '수달', '고라니', '부엉이', '다람쥐', '너구리', '사슴', '고양이'];
+const pick = (a) => a[Math.floor(rand(0, a.length))];
+const randomName = () => pick(ADJ) + ' ' + pick(ANIMAL);
+const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.42, 4, 10);
+const headGeo = new THREE.SphereGeometry(0.19, 14, 12);
+const hatGeo = new THREE.SphereGeometry(0.205, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xf3d2b3, roughness: 0.9 });
+const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const labelsEl = $('#labels');
+const projV = new THREE.Vector3();
+
+class Character {
+  constructor(color, isMe) {
+    this.group = new THREE.Group();
+    this.mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+    this.body = new THREE.Mesh(bodyGeo, this.mat); this.body.position.y = 0.45;
+    this.head = new THREE.Mesh(headGeo, skinMat); this.head.position.y = 0.96;
+    this.hat = new THREE.Mesh(hatGeo, this.mat); this.hat.position.y = 1.0;
+    this.group.add(this.body, this.head, this.hat);
+    scene.add(this.group);
+    this.pos = new THREE.Vector3(); this.target = new THREE.Vector3();
+    this.seat = -1; this.yaw = 0; this.walkT = 0; this.isMe = isMe;
+    this.tag = document.createElement('div');
+    this.tag.className = 'tag';
+    this.tag.innerHTML = `<div class="bb"></div><div class="em"></div><div class="nm${isMe ? ' me' : ''}"></div>`;
+    labelsEl.appendChild(this.tag);
+    this.bb = this.tag.querySelector('.bb'); this.em = this.tag.querySelector('.em'); this.nm = this.tag.querySelector('.nm');
+  }
+  setName(n) { this.nm.textContent = n; }
+  setColor(c) { this.mat.color.set(c); }
+  place(x, z) { this.pos.set(x, 0, z); this.target.copy(this.pos); this.group.position.copy(this.pos); }
+  walkTo(x, z) { this.seat = -1; this.target.set(x, 0, z); }
+  sit(i) { const s = SEATS[i]; if (!s) return; this.seat = i; this.target.set(s.x, 0, s.z); }
+  say(text) { this.bb.textContent = text; this.bb.classList.remove('on'); void this.bb.offsetWidth; this.bb.classList.add('on'); }
+  emote(e) { this.em.textContent = e; this.em.classList.remove('on'); void this.em.offsetWidth; this.em.classList.add('on'); }
+  headWorld() { return new THREE.Vector3(this.pos.x, this.group.position.y + 1.0, this.pos.z); }
+  update(dt) {
+    const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z;
+    const dist = Math.hypot(dx, dz);
+    const moving = dist > 0.03;
+    if (moving) {
+      const step = Math.min(dist, 1.7 * dt);
+      this.pos.x += dx / dist * step; this.pos.z += dz / dist * step;
+      this.yaw = Math.atan2(dx, dz);
+      this.walkT += dt * 9;
+    }
+    const seated = this.seat >= 0 && !moving;
+    if (seated) this.yaw = Math.atan2(-this.pos.x, -this.pos.z);
+    this.group.position.set(this.pos.x, seated ? 0.3 : (moving ? Math.abs(Math.sin(this.walkT)) * 0.05 : 0), this.pos.z);
+    this.group.rotation.y += wrapAngle(this.yaw - this.group.rotation.y) * Math.min(1, dt * 10);
+    this.body.scale.y += ((seated ? 0.72 : 1) - this.body.scale.y) * Math.min(1, dt * 8);
+    projV.set(this.pos.x, this.group.position.y + 1.25, this.pos.z).project(camera);
+    if (projV.z > 1 || projV.z < -1) { this.tag.style.display = 'none'; return; }
+    this.tag.style.display = '';
+    const x = (projV.x + 1) / 2 * innerWidth, y = (1 - projV.y) / 2 * innerHeight;
+    this.tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+  }
+  dispose() { scene.remove(this.group); this.tag.remove(); }
+}
+
+const ME_KEY = 'charles-forest.me';
+let meInfo = { name: randomName(), color: pick(PALETTE) };
+try { const s = JSON.parse(localStorage.getItem(ME_KEY) || 'null'); if (s && s.name && s.color) meInfo = s; } catch (e) { /* 저장소 없음 */ }
+const saveMe = () => { try { localStorage.setItem(ME_KEY, JSON.stringify(meInfo)); } catch (e) { /* 저장소 없음 */ } };
+saveMe();
+const me = new Character(meInfo.color, true);
+me.setName(meInfo.name);
+{
+  const a = Math.PI / 2 + rand(-0.6, 0.6), r = rand(3.6, 4.4);
+  me.place(Math.cos(a) * r, Math.sin(a) * r);
+}
+$('#myName').value = meInfo.name;
+$('#myName').addEventListener('change', (e) => {
+  const n = e.target.value.trim().slice(0, 16) || randomName();
+  e.target.value = n; meInfo.name = n; saveMe(); me.setName(n); net.updateMe({ name: n });
+});
+
+const others = new Map();
+function seatTakenBy(i) {
+  for (const [, o] of others) if (o.seat === i) return true;
+  return false;
+}
+
+// 바닥 탭 → 걷기, 통나무 탭 → 앉기
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let pdown = null;
+canvas.addEventListener('pointerdown', (e) => { pdown = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!pdown || state.cinema || performance.now() - (state.cinemaExitAt || 0) < 600) { pdown = null; return; }
+  const moved = Math.hypot(e.clientX - pdown.x, e.clientY - pdown.y);
+  const held = performance.now() - pdown.t;
+  pdown = null;
+  if (moved > 8 || held > 400) return;
+  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const logHit = raycaster.intersectObjects(seatLogs, false)[0];
+  if (logHit) {
+    const li = logHit.object.userData.log;
+    const cands = SEATS.map((s, i) => ({ s, i })).filter(({ s, i }) => s.log === li && !seatTakenBy(i));
+    if (!cands.length) { toast('이 통나무는 자리가 찼어요'); return; }
+    cands.sort((a, b) => Math.hypot(a.s.x - logHit.point.x, a.s.z - logHit.point.z) - Math.hypot(b.s.x - logHit.point.x, b.s.z - logHit.point.z));
+    me.sit(cands[0].i);
+    net.updateMe({ x: me.target.x, z: me.target.z, seat: me.seat });
+    return;
+  }
+  const g = raycaster.intersectObject(ground, false)[0];
+  if (!g) return;
+  let x = g.point.x, z = g.point.z;
+  const r = Math.hypot(x, z);
+  if (r < 1.3) { x = x / r * 1.3; z = z / r * 1.3; }
+  if (r > 9) { x = x / r * 9; z = z / r * 9; }
+  me.walkTo(x, z);
+  net.updateMe({ x, z, seat: -1 });
+});
+
+/* ================= 함께 있기 (Firebase) ================= */
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyC6hvcidn_Qb1nWTRakDSRi9h3j34kX7Fw',
+  authDomain: 'charles-forest-2026.firebaseapp.com',
+  databaseURL: 'https://charles-forest-2026-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'charles-forest-2026',
+  appId: '1:420991538275:web:07e9ebcc6083e938e51456'
+};
+const ROOM = 'lake';
+const FUEL_PER_MS = 100 / 420 / 1000;
+const decayed = (fuel, at, now) => clamp(fuel - Math.max(0, now - at) * FUEL_PER_MS, 0, 100);
+
+const net = {
+  on: false, uid: null, offset: 0, joinedAt: 0, lastSent: '', sendTimer: 0,
+  now() { return Date.now() + this.offset; },
+  async connect() {
+    try {
+      const base = 'https://www.gstatic.com/firebasejs/11.6.0/';
+      const [{ initializeApp }, A, D] = await Promise.all([
+        import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-database.js')
+      ]);
+      this.D = D;
+      const app = initializeApp(FIREBASE_CONFIG);
+      const cred = await A.signInAnonymously(A.getAuth(app));
+      this.uid = cred.user.uid;
+      const db = this.db = D.getDatabase(app);
+      const R = (p) => D.ref(db, `rooms/${ROOM}/${p}`);
+      this.fireRef = R('fire'); this.playersRef = R('players'); this.eventsRef = R('events');
+      this.meRef = R('players/' + this.uid);
+
+      D.onValue(D.ref(db, '.info/serverTimeOffset'), (s) => { this.offset = s.val() || 0; });
+      this.joinedAt = this.now();
+
+      await D.set(this.meRef, { name: meInfo.name, color: meInfo.color, x: me.pos.x, z: me.pos.z, seat: -1, at: D.serverTimestamp() });
+      D.onDisconnect(this.meRef).remove();
+      this.on = true;
+
+      // 불 상태 공유
+      D.onValue(this.fireRef, (s) => {
+        const v = s.val();
+        if (!v) { D.set(this.fireRef, { fuel: state.fuel, at: this.now() }); return; }
+        state.fuel = decayed(v.fuel, v.at, this.now());
+        const auroraLeft = v.aurora ? (v.aurora - this.now()) / 1000 : 0;
+        if (auroraLeft > 0 && state.aurora <= 0) { $('#btnAurora').disabled = true; }
+        state.aurora = Math.max(0, auroraLeft);
+        if (state.aurora <= 0) $('#btnAurora').disabled = false;
+      });
+
+      // 사람들
+      D.onValue(this.playersRef, (s) => {
+        const all = s.val() || {};
+        for (const uid in all) {
+          if (uid === this.uid) continue;
+          const p = all[uid];
+          let o = others.get(uid);
+          if (!o) {
+            o = { ch: new Character(p.color || '#ccc', false), seat: -1, sayAt: 0, emoteAt: 0 };
+            o.ch.place(p.x || 0, p.z || 3);
+            others.set(uid, o);
+            if (this.now() - this.joinedAt > 3000) toast(`${p.name || '누군가'} 님이 모닥불 앞에 왔어요`);
+          }
+          o.ch.setName(p.name || '');
+          if (p.color) o.ch.setColor(p.color);
+          const seat = typeof p.seat === 'number' ? p.seat : -1;
+          if (seat >= 0) { if (o.seat !== seat) o.ch.sit(seat); }
+          else if (typeof p.x === 'number') o.ch.walkTo(p.x, p.z);
+          o.seat = seat;
+          if (p.say && p.say.at > o.sayAt) { o.sayAt = p.say.at; if (p.say.at > this.joinedAt - 2000) o.ch.say(p.say.text); }
+          if (p.emote && p.emote.at > o.emoteAt) { o.emoteAt = p.emote.at; if (p.emote.at > this.joinedAt - 2000) o.ch.emote(p.emote.e); }
+        }
+        for (const [uid, o] of others) if (!all[uid]) { o.ch.dispose(); others.delete(uid); }
+        const n = others.size + 1;
+        $('#online').textContent = n === 1 ? '혼자' : `모닥불 앞 ${n}명`;
+      });
+
+      // 사건들 (장작·오로라·고민·악기)
+      D.onChildAdded(D.query(this.eventsRef, D.limitToLast(8)), (s) => {
+        const ev = s.val();
+        if (!ev || ev.by === this.uid || ev.at < this.joinedAt) return;
+        const o = others.get(ev.by);
+        const from = o ? o.ch.headWorld() : new THREE.Vector3(0, 1.5, 3);
+        if (ev.type === 'log') throwLog(from, false);
+        else if (ev.type === 'worry') { burst(35, 45); audio.pop(0.8); }
+        else if (ev.type === 'note') { audio.kalimba(ev.i, 0.22); if (o) o.ch.emote('🎵'); }
+        else if (ev.type === 'aurora') burst(60, 10);
+      });
+      toast('모닥불에 연결됐어요');
+    } catch (e) {
+      console.warn('함께 있기 연결 실패, 혼자 모드', e);
+      this.on = false;
+      $('#online').textContent = '혼자 (연결 안 됨)';
+    }
+  },
+  updateMe(fields) {
+    if (!this.on) return;
+    this.D.update(this.meRef, fields).catch(() => {});
+  },
+  event(type, extra = {}) {
+    if (!this.on) return;
+    this.D.push(this.eventsRef, { type, by: this.uid, at: this.now(), ...extra }).catch(() => {});
+  },
+  addLog() {
+    if (!this.on) return;
+    this.event('log');
+    this.D.runTransaction(this.fireRef, (cur) => {
+      const now = this.now();
+      const base = cur ? decayed(cur.fuel, cur.at, now) : state.fuel;
+      return { ...(cur || {}), fuel: Math.min(100, base + 22), at: now };
+    }).catch(() => {});
+  },
+  setAurora() {
+    if (!this.on) return;
+    this.event('aurora');
+    this.D.update(this.fireRef, { aurora: this.now() + 25000 }).catch(() => {});
+  },
+  say(text) { this.updateMe({ say: { text, at: this.now() } }); },
+  emote(e) { this.updateMe({ emote: { e, at: this.now() } }); },
+  tick(dt) {
+    if (!this.on) return;
+    this.sendTimer += dt;
+    if (this.sendTimer < 0.2) return;
+    this.sendTimer = 0;
+    const key = `${me.pos.x.toFixed(2)},${me.pos.z.toFixed(2)},${me.seat}`;
+    if (key === this.lastSent) return;
+    this.lastSent = key;
+    this.updateMe({ x: Number(me.pos.x.toFixed(2)), z: Number(me.pos.z.toFixed(2)), seat: me.seat });
+  }
+};
+net.connect();
+
+document.querySelectorAll('.emo').forEach((b) => b.addEventListener('click', () => { me.emote(b.dataset.emote); net.emote(b.dataset.emote); }));
+$('#btnSay').addEventListener('click', () => { $('#say').setAttribute('data-open', ''); $('#sayText').focus(); });
+$('#say').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const t = $('#sayText').value.trim().slice(0, 60);
+  $('#say').removeAttribute('data-open');
+  if (!t) return;
+  $('#sayText').value = '';
+  me.say(t); net.say(t);
 });
 
 /* ================= 크기 ================= */
@@ -839,6 +1149,9 @@ function frame() {
   updateParticles(dt);
   updateFlying(dt);
   audio.tick(dt);
+  me.update(dt);
+  for (const [, o] of others) o.ch.update(dt);
+  net.tick(dt);
 
   if (state.sleepEnd) {
     const rem = state.sleepEnd - Date.now();
