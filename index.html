@@ -73,10 +73,6 @@
   .emo { width: 36px; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: rgba(255,255,255,0.05); cursor: pointer; font-size: 17px; line-height: 1; padding: 0; }
   .emo:hover { background: rgba(255,255,255,0.12); }
   #moveHint { margin-left: auto; font-size: 11px; color: var(--dim); }
-  #say { position: fixed; left: 50%; bottom: 50%; transform: translate(-50%, 50%); width: min(380px, calc(100% - 32px)); padding: 10px; z-index: 8; display: none; gap: 6px; }
-  #say[data-open] { display: flex; }
-  #say input { flex: 1; min-width: 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); color: var(--text); font: inherit; font-size: 14px; }
-  #say .btn { flex: 0 0 auto; }
   #labels { position: fixed; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
   .tag { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; gap: 3px; white-space: nowrap; will-change: transform; }
   .tag .nm { font-size: 11px; color: rgba(241,233,216,0.75); text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
@@ -103,6 +99,22 @@
   #enter:hover { transform: translateY(-2px); }
   @keyframes breathe { 0%, 100% { box-shadow: 0 8px 30px rgba(255,150,60,0.4); } 50% { box-shadow: 0 8px 44px rgba(255,170,80,0.75); } }
   #gateNote { font-size: 12px; color: rgba(255,245,225,0.55); margin: 0; }
+  #toast { z-index: 30; }
+  #gateName { width: min(300px, 80vw); padding: 12px 16px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.3); background: rgba(10,16,28,0.6); color: var(--text); font: inherit; font-size: 16px; text-align: center; outline: none; }
+  #gateName:focus { border-color: var(--accent); }
+  #gateName.shake { animation: shake .4s; border-color: #ff7a7a; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+  /* 채팅 */
+  #chat { display: flex; gap: 6px; padding: 8px; }
+  #chatText { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,0.3); color: var(--text); font: inherit; font-size: 14px; }
+  #chatText:focus { outline: none; border-color: rgba(255,178,90,0.6); }
+  #chat .btn { flex: 0 0 auto; }
+  #chatLog { position: fixed; left: 16px; top: 44px; z-index: 5; display: flex; flex-direction: column; gap: 4px; max-width: min(320px, 60vw); pointer-events: none; transition: opacity .6s; }
+  #chatLog div { font-size: 13px; color: var(--text); text-shadow: 0 1px 4px rgba(0,0,0,0.9); animation: logfade 12s forwards; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #chatLog b { color: var(--accent); font-weight: 600; }
+  @keyframes logfade { 0%, 75% { opacity: .95; } 100% { opacity: 0; } }
+  body.cinema #chatLog { opacity: 0; }
 
   @media (max-width: 480px) {
     .btn { min-width: 0; padding: 10px 8px; font-size: 13px; }
@@ -125,6 +137,7 @@
   <div id="gateBody">
     <div id="gateFallback">모여봐요<br>찰스의 숲</div>
     <p id="gateTag">숲속 호숫가 모닥불 앞에서 잠시 쉬어 가세요</p>
+    <input id="gateName" type="text" maxlength="12" placeholder="숲에서 쓸 이름을 적어 주세요" autocomplete="nickname" aria-label="숲에서 쓸 이름">
     <button id="enter">Google 계정으로 입장</button>
     <p id="gateNote">Google 로그인한 사람끼리 모닥불을 나눠요 · 소리가 함께 켜집니다</p>
   </div>
@@ -133,7 +146,12 @@
 <div id="title"><b>모여봐요 찰스의 숲</b> · 불멍</div>
 <div id="hint">드래그로 둘러보기 · 휠을 내리면 3인칭<br>WASD·방향키로 걷기</div>
 
+<div id="chatLog" aria-live="polite"></div>
 <div id="hud">
+  <form id="chat" class="panel" autocomplete="off">
+    <input id="chatText" type="text" maxlength="60" placeholder="말풍선으로 이야기해요 · Enter" aria-label="채팅">
+    <button class="btn primary" type="submit">보내기</button>
+  </form>
   <div id="status" class="panel">
     <span>불 상태 <b id="stateName">적정 불</b></span>
     <span id="fuelBar"><i id="fuelFill"></i></span>
@@ -144,7 +162,6 @@
     <div id="actions">
       <button class="btn primary" id="btnLog">장작 넣기</button>
       <button class="btn" id="btnAurora">오로라 가루</button>
-      <button class="btn" id="btnSay">말하기</button>
       <button class="btn" id="btnCinema">불멍 모드</button>
       <button class="btn" id="btnWorry">고민 태우기</button>
       <button class="btn" id="btnMelody">멜로디 끄기</button>
@@ -182,10 +199,6 @@
 <div id="dim"></div>
 <div id="toast" role="status"></div>
 
-<form id="say" class="panel" autocomplete="off">
-  <input id="sayText" type="text" maxlength="60" placeholder="말풍선은 연기처럼 사라져요" aria-label="말하기">
-  <button class="btn primary" type="submit">말하기</button>
-</form>
 <div id="labels" aria-hidden="true"></div>
 
 <div id="worry" class="panel" role="dialog" aria-labelledby="worryTitle">
@@ -757,7 +770,6 @@ function enterCinema() {
   state.cinemaAngle = Math.atan2(camera.position.x, camera.position.z);
   document.body.classList.add('cinema');
   $('#worry').removeAttribute('data-open');
-  $('#say').removeAttribute('data-open');
 }
 function exitCinema() {
   if (!state.cinema) return;
@@ -825,7 +837,7 @@ $('#sleep').addEventListener('change', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
-  if (e.key === 'Escape') { exitCinema(); $('#worry').removeAttribute('data-open'); $('#say').removeAttribute('data-open'); return; }
+  if (e.key === 'Escape') { exitCinema(); $('#worry').removeAttribute('data-open'); return; }
   keys.add(e.key.toLowerCase());
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
@@ -855,8 +867,15 @@ window.addEventListener('keydown', unlock, { once: true });
 const gate = $('#gate');
 $('#gateArt').addEventListener('error', () => gate.classList.add('noart'));
 let entering = false;
+const gateName = $('#gateName');
+if (meInfo.custom) gateName.value = meInfo.name;
+gateName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#enter').click(); } });
 $('#enter').addEventListener('click', async () => {
   if (entering) return;
+  const name = gateName.value.trim().slice(0, 12);
+  if (!name) { gateName.classList.remove('shake'); void gateName.offsetWidth; gateName.classList.add('shake'); gateName.focus(); toast('숲에서 쓸 이름을 적어 주세요'); return; }
+  if (hasBad(name)) { gateName.classList.remove('shake'); void gateName.offsetWidth; gateName.classList.add('shake'); gateName.focus(); toast('이름에 쓸 수 없는 말이 있어요'); return; }
+  meInfo.name = name; meInfo.custom = true; saveMe(); me.setName(name); $('#myName').value = name;
   entering = true;
   unlock();
   const btn = $('#enter');
@@ -933,6 +952,17 @@ class Character {
   dispose() { scene.remove(this.group); this.tag.remove(); }
 }
 
+// 기본 욕설 필터: 글자 사이 공백·기호를 끼워 넣어도 잡고, 맞는 부분만 ●로 가린다
+const BAD_WORDS = ['씨발', '시발', '씨바', '시바', '씨팔', '시팔', '씨빨', 'ㅅㅂ', 'ㅆㅂ', '병신', 'ㅂㅅ', '개새끼', '새끼', '새키', '지랄', 'ㅈㄹ', '좆', '존나', 'ㅈㄴ', '썅', '미친놈', '미친년', '니미', '니애미', '엿먹', '씹', '꺼져', '닥쳐', '염병', '느금', '개년', '걸레',
+  'fuck', 'shit', 'bitch', 'asshole', 'cunt', 'bastard', 'dick', 'motherfucker', 'wtf', 'stfu'];
+const BAD_RE = BAD_WORDS.map((w) => new RegExp([...w].map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s.\\-_*~^,!?]*'), 'gi'));
+function clean(text) {
+  let out = String(text || '');
+  for (const re of BAD_RE) out = out.replace(re, (m) => '●'.repeat(Math.max(1, m.replace(/[\s.\-_*~^,!?]/g, '').length)));
+  return out;
+}
+const hasBad = (text) => clean(text) !== String(text || '');
+
 const ME_KEY = 'charles-forest.me';
 let meInfo = { name: randomName(), color: pick(PALETTE) };
 try { const s = JSON.parse(localStorage.getItem(ME_KEY) || 'null'); if (s && s.name && s.color) meInfo = s; } catch (e) { /* 저장소 없음 */ }
@@ -947,7 +977,8 @@ me.setName(meInfo.name);
 }
 $('#myName').value = meInfo.name;
 $('#myName').addEventListener('change', (e) => {
-  const n = e.target.value.trim().slice(0, 16) || randomName();
+  let n = e.target.value.trim().slice(0, 16) || randomName();
+  if (hasBad(n)) { toast('이름에 쓸 수 없는 말이 있어요'); n = meInfo.name; }
   e.target.value = n; meInfo.name = n; meInfo.custom = true; saveMe(); me.setName(n); net.updateMe({ name: n });
 });
 
@@ -1119,15 +1150,19 @@ const net = {
             o = { ch: new Character(p.color || '#ccc', false), seat: -1, sayAt: 0, emoteAt: 0 };
             o.ch.place(p.x || 0, p.z || 3);
             others.set(uid, o);
-            if (this.now() - this.joinedAt > 3000) toast(`${p.name || '누군가'} 님이 모닥불 앞에 왔어요`);
+            if (this.now() - this.joinedAt > 3000) toast(`${clean(p.name) || '누군가'} 님이 모닥불 앞에 왔어요`);
           }
-          o.ch.setName(p.name || '');
+          const pname = clean(String(p.name || '').slice(0, 16));
+          o.ch.setName(pname);
           if (p.color) o.ch.setColor(p.color);
           const seat = typeof p.seat === 'number' ? p.seat : -1;
           if (seat >= 0) { if (o.seat !== seat) o.ch.sit(seat); }
           else if (typeof p.x === 'number') o.ch.walkTo(p.x, p.z);
           o.seat = seat;
-          if (p.say && p.say.at > o.sayAt) { o.sayAt = p.say.at; if (p.say.at > this.joinedAt - 2000) o.ch.say(p.say.text); }
+          if (p.say && p.say.at > o.sayAt) {
+            o.sayAt = p.say.at;
+            if (p.say.at > this.joinedAt - 2000) { const txt = clean(String(p.say.text || '').slice(0, 60)); o.ch.say(txt); logChat(pname, txt); }
+          }
           if (p.emote && p.emote.at > o.emoteAt) { o.emoteAt = p.emote.at; if (p.emote.at > this.joinedAt - 2000) o.ch.emote(p.emote.e); }
         }
         for (const [uid, o] of others) if (!all[uid]) { o.ch.dispose(); others.delete(uid); }
@@ -1195,14 +1230,32 @@ const net = {
 net.init();
 
 document.querySelectorAll('.emo').forEach((b) => b.addEventListener('click', () => { me.emote(b.dataset.emote); net.emote(b.dataset.emote); }));
-$('#btnSay').addEventListener('click', () => { $('#say').setAttribute('data-open', ''); $('#sayText').focus(); });
-$('#say').addEventListener('submit', (e) => {
+// 채팅: 입력줄에서 Enter → 내 말풍선 + 모두에게 전송. 욕설은 보낼 때 가린다.
+const chatLog = $('#chatLog');
+function logChat(name, text) {
+  const row = document.createElement('div');
+  const b = document.createElement('b'); b.textContent = name + ' ';
+  row.appendChild(b); row.appendChild(document.createTextNode(text));
+  chatLog.appendChild(row);
+  while (chatLog.children.length > 5) chatLog.firstChild.remove();
+  setTimeout(() => row.remove(), 12000);
+}
+$('#chat').addEventListener('submit', (e) => {
   e.preventDefault();
-  const t = $('#sayText').value.trim().slice(0, 60);
-  $('#say').removeAttribute('data-open');
+  const input = $('#chatText');
+  const t = clean(input.value.trim().slice(0, 60));
+  input.value = '';
   if (!t) return;
-  $('#sayText').value = '';
-  me.say(t); net.say(t);
+  me.say(t); net.say(t); logChat(meInfo.name, t);
+  if (!net.on) toast('지금은 혼자라 말풍선만 떠요');
+  input.blur();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || state.cinema) return;
+  const tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || $('#gate')) return;
+  e.preventDefault();
+  $('#chatText').focus();
 });
 
 /* ================= 크기 ================= */
