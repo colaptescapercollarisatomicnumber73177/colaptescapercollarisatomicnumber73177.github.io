@@ -30,7 +30,8 @@
   #fuelBar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); overflow: hidden; }
   #fuelBar i { display: block; height: 100%; width: 60%; border-radius: 3px; background: linear-gradient(90deg, #ff6a1a, #ffc04a); transition: width .4s; }
   #sleepInfo { color: var(--accent); }
-  #actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+  .primaryRow { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+  #secondary { padding-top: 0; }
   button, select, input[type=range] { font: inherit; color: inherit; }
   .btn { flex: 1 1 auto; min-width: 86px; padding: 10px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,0.06); cursor: pointer; font-size: 14px; transition: background .2s; }
   .btn:hover { background: rgba(255,255,255,0.12); }
@@ -118,10 +119,12 @@
   body.cinema #chatLog { opacity: 0; }
 
   /* 작은 창: 메뉴 접기 버튼, 가만히 두면 UI 흐려짐 */
-  #hudToggle { position: fixed; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 6; width: 40px; height: 40px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 18px; padding: 0; }
-  body.hud-collapsed #actions, body.hud-collapsed #emotes, body.hud-collapsed #mixer { display: none; }
-  body.hud-collapsed #hud { width: min(420px, calc(100% - 72px)); left: 12px; transform: none; }
+  #hudToggle { position: fixed; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 6; height: 36px; border-radius: 999px; display: none; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .08em; padding: 0 14px; }
+  body.hud-collapsed #secondary, body.hud-collapsed #emotes, body.hud-collapsed #mixer { display: none; }
+  body.hud-collapsed #hud { width: min(520px, calc(100% - 92px)); left: 12px; transform: none; }
   body.hud-collapsed #status { padding: 6px 10px; font-size: 12px; }
+  body.hud-collapsed #actions { padding: 6px; gap: 4px; }
+  body.hud-collapsed #actions .btn { padding: 8px 6px; font-size: 13px; }
   body.idle #hud, body.idle #hint, body.idle #title, body.idle #chatLog, body.idle #hudToggle { opacity: 0.18; }
   body.idle #hud:hover, body.idle #hud:focus-within { opacity: 1; }
   #hudToggle, #hint, #title, #chatLog { transition: opacity .6s; }
@@ -130,7 +133,7 @@
     #hint { display: none; }
     #moveHint { display: none; }
     .btn { min-width: 0; padding: 9px 8px; font-size: 13px; }
-    #actions { padding: 6px; gap: 4px; }
+    .primaryRow { padding: 6px; gap: 4px; }
     #emotes { padding: 0 6px 6px; }
     #chatText { padding: 8px 10px; font-size: 13px; }
     #hud { gap: 6px; }
@@ -177,11 +180,13 @@
     <span id="sleepInfo" hidden></span>
   </div>
   <div class="panel">
-    <div id="actions">
+    <div id="actions" class="primaryRow">
       <button class="btn primary" id="btnLog">장작 넣기</button>
       <button class="btn" id="btnAurora">오로라 가루</button>
       <button class="btn" id="btnCinema">불멍 모드</button>
       <button class="btn" id="btnWorry">고민 태우기</button>
+    </div>
+    <div id="secondary" class="primaryRow">
       <button class="btn" id="btnMelody">멜로디 끄기</button>
       <button class="btn" id="btnSound">소리 켜기</button>
     </div>
@@ -213,7 +218,7 @@
   </div>
 </div>
 
-<button class="btn panel" id="hudToggle" aria-label="메뉴 접기/펼치기" title="메뉴 접기/펼치기 (H)">☰</button>
+<button class="btn panel" id="hudToggle" aria-label="메뉴 접기/펼치기" title="메뉴 접기/펼치기 (H)">MENU</button>
 <button class="btn panel" id="exitCinema">화면을 누르거나 ESC · 불멍 모드 나가기</button>
 <div id="dim"></div>
 <div id="toast" role="status"></div>
@@ -795,7 +800,7 @@ let hudManual = null;
 function applyHud() {
   const collapsed = hudManual === null ? smallView() : hudManual;
   document.body.classList.toggle('hud-collapsed', collapsed);
-  $('#hudToggle').textContent = collapsed ? '☰' : '✕';
+  $('#hudToggle').textContent = collapsed ? 'MENU' : '닫기';
 }
 $('#hudToggle').addEventListener('click', () => { hudManual = !document.body.classList.contains('hud-collapsed'); applyHud(); });
 window.addEventListener('resize', () => { if (!smallView()) hudManual = null; applyHud(); });
