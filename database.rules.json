@@ -12,9 +12,11 @@
         "players": {
           "$uid": {
             ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider == 'google.com'",
-            ".validate": "!newData.exists() || (newData.hasChildren(['name', 'color']) && newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('color').isString())",
+            ".validate": "!newData.exists() || (newData.hasChildren(['name', 'color']) && newData.child('name').isString() && newData.child('name').val().length <= 16 && newData.child('color').isString() && (!newData.child('name').val().replace(' ', '').toLowerCase().matches(/^(찰스|문찰스|charles)$/) || root.child('owners').child(auth.uid).val() == true))",
             "say": {
-              "text": { ".validate": "newData.isString() && newData.val().length <= 60" }
+              "text": {
+                ".validate": "newData.isString() && newData.val().length <= 60"
+              }
             }
           }
         },
@@ -24,6 +26,12 @@
             ".validate": "newData.hasChildren(['type', 'by', 'at']) && newData.child('by').val() == auth.uid && newData.child('type').isString() && newData.child('type').val().length <= 12"
           }
         }
+      }
+    },
+    "owners": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "false"
       }
     }
   }

@@ -1248,6 +1248,9 @@ function clean(text) {
   return out;
 }
 const hasBad = (text) => clean(text) !== String(text || '');
+// 숲 주인 전용 이름 (서버 규칙에서도 막힘)
+const RESERVED = ['찰스', '문찰스', 'charles'];
+const isReserved = (name) => RESERVED.includes(String(name || '').replace(/\s+/g, '').toLowerCase());
 
 const ME_KEY = 'charles-forest.me';
 let meInfo = { name: randomName(), color: pick(PALETTE) };
@@ -1266,6 +1269,7 @@ $('#gateName').value = meInfo.custom ? meInfo.name : '';
 $('#myName').addEventListener('change', (e) => {
   let n = e.target.value.trim().slice(0, 16) || randomName();
   if (hasBad(n)) { toast('이름에 쓸 수 없는 말이 있어요'); n = meInfo.name; }
+  else if (isReserved(n) && !net.isOwner) { toast('이 이름은 숲 주인만 쓸 수 있어요'); n = meInfo.name; }
   e.target.value = n; meInfo.name = n; meInfo.custom = true; saveMe(); me.setName(n); net.updateMe({ name: n });
 });
 
@@ -1404,6 +1408,12 @@ const net = {
       if (!meInfo.custom && user.displayName) { meInfo.name = user.displayName.slice(0, 16); saveMe(); me.setName(meInfo.name); $('#myName').value = meInfo.name; }
       const D = this.D;
       const db = this.db = D.getDatabase(this.app);
+      this.isOwner = (await D.get(D.ref(db, 'owners/' + this.uid))).val() === true;
+      if (isReserved(meInfo.name) && !this.isOwner) {
+        toast('이 이름은 숲 주인만 쓸 수 있어요');
+        meInfo.name = randomName(); meInfo.custom = false; saveMe(); me.setName(meInfo.name); $('#myName').value = meInfo.name; gateName.value = '';
+        return false;
+      }
       const R = (p) => D.ref(db, `rooms/${ROOM}/${p}`);
       this.fireRef = R('fire'); this.playersRef = R('players'); this.eventsRef = R('events');
       this.meRef = R('players/' + this.uid);
