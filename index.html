@@ -636,12 +636,15 @@ const audio = {
     this.nextChirp = ctx.currentTime + 0.4;
     this.nextChirp2 = ctx.currentTime + 1.1;
     this.nextNote = ctx.currentTime + 1.5;
+    this.nextPop = ctx.currentTime + 0.2;
     applyMixer();
+    this.startScheduler();
   },
+  tick() { /* 소리 예약은 startScheduler 의 타이머가 맡는다 */ },
   get running() { return this.started && this.ctx.state === 'running'; },
-  pop(strength = 1) {
+  pop(strength = 1, at = 0) {
     if (!this.running) return;
-    const ctx = this.ctx, t = ctx.currentTime;
+    const ctx = this.ctx, t = at || ctx.currentTime;
     const s = ctx.createBufferSource(); s.buffer = this.white;
     const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = rand(1200, 4800); bp.Q.value = 1.2;
     const g = ctx.createGain();
@@ -679,16 +682,25 @@ const audio = {
     osc.connect(lp).connect(g).connect(dest);
     osc.start(t); osc.stop(t + dur + 0.05);
   },
-  // 랜덤 멜로디: 3~7음 구절 뒤 쉼, 오음계 안에서 작은 도약
-  phraseLeft: 0,
-  tick(dt) {
+  // 소리 예약은 화면 루프가 아니라 타이머로: 탭이 가려져도 2.5초 앞까지 미리 잡아 둔다
+  phraseLeft: 0, nextPop: 0,
+  startScheduler() {
+    if (this.schedTimer) return;
+    this.schedTimer = setInterval(() => this.schedule(), 250);
+    this.schedule();
+  },
+  schedule() {
     if (!this.running) return;
-    const ctx = this.ctx, now = ctx.currentTime;
-    if (Math.random() < dt * (1.2 + 9 * fuelF())) this.pop(0.3 + 0.7 * fuelF());
-    while (now + 0.3 > this.nextChirp) { this.chirp(this.nextChirp); this.nextChirp += rand(0.45, 1.7); }
-    while (now + 0.3 > this.nextChirp2) { this.chirp(this.nextChirp2); this.nextChirp2 += rand(0.9, 2.6); }
-    while (now + 0.3 > this.nextNote) {
-      if (!state.melody) { this.nextNote = now + 1; break; }
+    const ctx = this.ctx, now = ctx.currentTime, ahead = now + 2.5;
+    if (this.nextPop < now) this.nextPop = now;
+    while (this.nextPop < ahead) { this.pop(0.3 + 0.7 * fuelF(), this.nextPop); this.nextPop += rand(0.03, 1.2) / (0.25 + fuelF()); }
+    if (this.nextChirp < now) this.nextChirp = now;
+    if (this.nextChirp2 < now) this.nextChirp2 = now;
+    if (this.nextNote < now) this.nextNote = now;
+    while (ahead > this.nextChirp) { this.chirp(this.nextChirp); this.nextChirp += rand(0.45, 1.7); }
+    while (ahead > this.nextChirp2) { this.chirp(this.nextChirp2); this.nextChirp2 += rand(0.9, 2.6); }
+    while (ahead > this.nextNote) {
+      if (!state.melody) { this.nextNote = now + 0.5; break; }
       if (this.phraseLeft <= 0) {
         this.phraseLeft = 3 + Math.floor(rand(0, 5));
         this.noteIdx = clamp(this.noteIdx + Math.round(rand(-3, 3)), 2, PENTA.length - 1);
@@ -701,7 +713,7 @@ const audio = {
     }
   },
   toggle() {
-    if (!this.started) { this.start(); }
+    if (!this.started) { this.start(); if (this.ctx) this.ctx.resume(); setTimeout(updateSoundButton, 60); return; }
     if (!this.ctx) return;
     if (this.ctx.state === 'running') this.ctx.suspend(); else this.ctx.resume();
     setTimeout(updateSoundButton, 60);
@@ -1601,7 +1613,7 @@ function frame() {
 updateUI();
 frame();
 // 점검용 (콘솔에서 상태 확인)
-window.charlesForest = { state, cam, me, animals, meteors, launchMeteor };
+window.charlesForest = { state, cam, me, animals, meteors, launchMeteor, audio };
 </script>
 </body>
 </html>
