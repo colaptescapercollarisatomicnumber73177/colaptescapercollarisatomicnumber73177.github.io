@@ -214,6 +214,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -841,18 +842,19 @@ $('#sleep').addEventListener('change', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT')) return;
-  if (e.key === 'Escape') { exitCinema(); $('#worry').removeAttribute('data-open'); return; }
-  if (e.key === ' ' && !state.cinema && !$('#gate')) {
+  if (e.code === 'Escape') { exitCinema(); $('#worry').removeAttribute('data-open'); return; }
+  // 한글 입력 상태에서도 되도록 물리 키 코드(e.code)로 판단
+  if (e.code === 'Space' && !state.cinema && !$('#gate')) {
     e.preventDefault();
     if (me.jumpY <= 0) { const wasSeated = me.seat >= 0; me.jump(); net.event('jump'); if (wasSeated) net.updateMe({ seat: -1, x: me.pos.x, z: me.pos.z }); }
     return;
   }
-  keys.add(e.key.toLowerCase());
+  if (KEYMAP[e.code]) { e.preventDefault(); keys.add(e.code); }
 });
-window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+window.addEventListener('keyup', (e) => keys.delete(e.code));
 window.addEventListener('blur', () => keys.clear());
 const keys = new Set();
-const KEYMAP = { w: [0, 1], arrowup: [0, 1], s: [0, -1], arrowdown: [0, -1], a: [1, 0], arrowleft: [1, 0], d: [-1, 0], arrowright: [-1, 0] };
+const KEYMAP = { KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1], KeyA: [1, 0], ArrowLeft: [1, 0], KeyD: [-1, 0], ArrowRight: [-1, 0] };
 function keyWalk(dt) {
   let f = 0, r = 0;
   for (const k of keys) { const m = KEYMAP[k]; if (m) { r += m[0]; f += m[1]; } }
@@ -991,6 +993,37 @@ function updateAnimals(dt) {
 buildForest().catch((e) => console.warn('숲 모델 읽기 실패, 기본 숲 유지', e));
 buildAnimals().catch((e) => console.warn('동물 모델 읽기 실패', e));
 
+// 사람 캐릭터(Mini Forest character-archer): 옷 색을 8가지 색조로 돌려 서로 구분
+const archer = { gltf: null, bodyTex: [], headTex: null };
+const HUE_SHIFTS = [0, 45, 90, 135, 180, 225, 270, 315];
+function hueTexture(image, deg) {
+  const c = document.createElement('canvas'); c.width = image.width; c.height = image.height;
+  const g = c.getContext('2d');
+  g.filter = `hue-rotate(${deg}deg)`;
+  g.drawImage(image, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  return t;
+}
+async function buildArcher() {
+  const gltf = await loadGLB(FOREST + 'character-archer.glb');
+  let baseMat = null;
+  gltf.scene.traverse((o) => { if (o.isMesh && !baseMat) baseMat = o.material; });
+  const img = baseMat && baseMat.map && baseMat.map.image;
+  if (!img) throw new Error('colormap 없음');
+  archer.headTex = baseMat.map;
+  archer.bodyTex = HUE_SHIFTS.map((d) => hueTexture(img, d));
+  archer.gltf = gltf;
+  for (const ch of allChars) ch.attachModel();
+}
+buildArcher().catch((e) => console.warn('사람 모델 읽기 실패, 기본 캐릭터 유지', e));
+function hueIndexOf(color) {
+  const i = PALETTE.indexOf(color);
+  if (i >= 0) return i % HUE_SHIFTS.length;
+  let h = 0; for (const c of String(color)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % HUE_SHIFTS.length;
+}
+
 /* ================= 별똥별 ================= */
 const meteors = [];
 const meteorMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
@@ -1054,18 +1087,25 @@ const skinMat = new THREE.MeshStandardMaterial({ color: 0xf3d2b3, roughness: 0.9
 const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const labelsEl = $('#labels');
 const projV = new THREE.Vector3();
+const allChars = new Set();
+const ARCHER_SCALE = 1.6;
 
 class Character {
   constructor(color, isMe) {
     this.group = new THREE.Group();
+    this.color = color;
     this.mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
     this.body = new THREE.Mesh(bodyGeo, this.mat); this.body.position.y = 0.45;
     this.head = new THREE.Mesh(headGeo, skinMat); this.head.position.y = 0.96;
     this.hat = new THREE.Mesh(hatGeo, this.mat); this.hat.position.y = 1.0;
-    this.group.add(this.body, this.head, this.hat);
+    this.capsule = new THREE.Group(); this.capsule.add(this.body, this.head, this.hat);
+    this.group.add(this.capsule);
     scene.add(this.group);
     this.pos = new THREE.Vector3(); this.target = new THREE.Vector3();
     this.seat = -1; this.yaw = 0; this.walkT = 0; this.isMe = isMe; this.jumpY = 0; this.vy = 0;
+    this.model = null; this.mixer = null; this.clips = {}; this.cur = null; this.anim = '';
+    allChars.add(this);
+    if (archer.gltf) this.attachModel();
     this.tag = document.createElement('div');
     this.tag.className = 'tag';
     this.tag.innerHTML = `<div class="bb"></div><div class="em"></div><div class="nm${isMe ? ' me' : ''}"></div>`;
@@ -1073,13 +1113,40 @@ class Character {
     this.bb = this.tag.querySelector('.bb'); this.em = this.tag.querySelector('.em'); this.nm = this.tag.querySelector('.nm');
   }
   setName(n) { this.nm.textContent = n; }
-  setColor(c) { this.mat.color.set(c); }
+  setColor(c) { this.color = c; this.mat.color.set(c); if (this.bodyMat) this.bodyMat.map = archer.bodyTex[hueIndexOf(c)]; }
+  attachModel() {
+    if (this.model || !archer.gltf) return;
+    const m = SkeletonUtils.clone(archer.gltf.scene);
+    m.scale.setScalar(ARCHER_SCALE);
+    m.rotation.y = Math.PI; // Kenney 모델 정면은 -Z
+    m.traverse((o) => {
+      if (!o.isMesh) return;
+      o.frustumCulled = false;
+      if (o.name === 'body-mesh') { this.bodyMat = o.material.clone(); this.bodyMat.map = archer.bodyTex[hueIndexOf(this.color)]; o.material = this.bodyMat; }
+    });
+    this.model = m;
+    this.capsule.visible = false;
+    this.group.add(m);
+    this.mixer = new THREE.AnimationMixer(m);
+    for (const c of archer.gltf.animations) this.clips[c.name] = this.mixer.clipAction(c);
+    this.play('idle');
+  }
+  play(name, once = false) {
+    const next = this.clips[name];
+    if (!next || this.anim === name) return;
+    next.reset().setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity).setEffectiveTimeScale(name === 'walk' ? 1.4 : 1).fadeIn(0.18).play();
+    if (this.cur) this.cur.fadeOut(0.18);
+    this.cur = next; this.anim = name;
+  }
   place(x, z) { this.pos.set(x, 0, z); this.target.copy(this.pos); this.group.position.copy(this.pos); }
   walkTo(x, z) { this.seat = -1; this.target.set(x, 0, z); }
   sit(i) { const s = SEATS[i]; if (!s) return; this.seat = i; this.target.set(s.x, 0, s.z); }
   jump() { if (this.jumpY > 0) return; this.vy = 3.4; this.jumpY = 0.001; if (this.seat >= 0) { this.seat = -1; this.target.copy(this.pos); } }
   say(text) { this.bb.textContent = text; this.bb.classList.remove('on'); void this.bb.offsetWidth; this.bb.classList.add('on'); }
-  emote(e) { this.em.textContent = e; this.em.classList.remove('on'); void this.em.offsetWidth; this.em.classList.add('on'); }
+  emote(e) {
+    this.em.textContent = e; this.em.classList.remove('on'); void this.em.offsetWidth; this.em.classList.add('on');
+    if (this.model && this.seat < 0 && this.jumpY <= 0) { this.emoteUntil = state.time + 1.6; this.play(e === '😴' ? 'crouch' : 'emote-yes'); }
+  }
   headWorld() { return new THREE.Vector3(this.pos.x, this.group.position.y + 1.0, this.pos.z); }
   update(dt) {
     const dx = this.target.x - this.pos.x, dz = this.target.z - this.pos.z;
@@ -1094,16 +1161,25 @@ class Character {
     const seated = this.seat >= 0 && !moving;
     if (seated) this.yaw = Math.atan2(-this.pos.x, -this.pos.z);
     if (this.jumpY > 0) { this.vy -= 9.8 * dt; this.jumpY += this.vy * dt; if (this.jumpY <= 0) { this.jumpY = 0; this.vy = 0; } }
-    this.group.position.set(this.pos.x, (seated ? 0.3 : (moving ? Math.abs(Math.sin(this.walkT)) * 0.05 : 0)) + this.jumpY, this.pos.z);
+    const baseY = this.model ? (seated ? 0.42 : 0) : (seated ? 0.3 : (moving ? Math.abs(Math.sin(this.walkT)) * 0.05 : 0));
+    this.group.position.set(this.pos.x, baseY + this.jumpY, this.pos.z);
     this.group.rotation.y += wrapAngle(this.yaw - this.group.rotation.y) * Math.min(1, dt * 10);
-    this.body.scale.y += ((seated ? 0.72 : 1) - this.body.scale.y) * Math.min(1, dt * 8);
+    if (this.model) {
+      this.mixer.update(dt);
+      if (this.jumpY > 0) this.play('jump');
+      else if (seated) this.play('sit');
+      else if (moving) this.play('walk');
+      else if (!(this.emoteUntil > state.time)) this.play('idle');
+    } else {
+      this.body.scale.y += ((seated ? 0.72 : 1) - this.body.scale.y) * Math.min(1, dt * 8);
+    }
     projV.set(this.pos.x, this.group.position.y + 1.25, this.pos.z).project(camera);
     if (projV.z > 1 || projV.z < -1 || (this.isMe && !this.group.visible)) { this.tag.style.display = 'none'; return; }
     this.tag.style.display = '';
     const x = (projV.x + 1) / 2 * innerWidth, y = (1 - projV.y) / 2 * innerHeight;
     this.tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
   }
-  dispose() { scene.remove(this.group); this.tag.remove(); }
+  dispose() { scene.remove(this.group); this.tag.remove(); allChars.delete(this); }
 }
 
 // 기본 욕설 필터: 글자 사이 공백·기호를 끼워 넣어도 잡고, 맞는 부분만 ●로 가린다
@@ -1437,7 +1513,7 @@ function updateCamera(dt) {
   const third = cam.thirdPerson;
   cam.tilt = third ? clamp(cam.tilt, 0.05, 1.25) : clamp(cam.tilt, -0.7, 0.7);
   const seated = me.seat >= 0 && Math.hypot(me.target.x - me.pos.x, me.target.z - me.pos.z) < 0.05;
-  camHead.set(me.pos.x, (seated ? 0.3 : 0) + 1.05 + me.jumpY, me.pos.z);
+  camHead.set(me.pos.x, (seated ? (me.model ? 0.42 : 0.3) : 0) + (me.model ? 1.12 : 1.05) + me.jumpY, me.pos.z);
   if (third) {
     const h = Math.cos(cam.tilt) * cam.dist, v = Math.sin(cam.tilt) * cam.dist;
     camGoal.set(camHead.x - Math.sin(cam.yaw) * h, camHead.y + v, camHead.z - Math.cos(cam.yaw) * h);
