@@ -868,7 +868,6 @@ const gate = $('#gate');
 $('#gateArt').addEventListener('error', () => gate.classList.add('noart'));
 let entering = false;
 const gateName = $('#gateName');
-if (meInfo.custom) gateName.value = meInfo.name;
 gateName.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#enter').click(); } });
 $('#enter').addEventListener('click', async () => {
   if (entering) return;
@@ -976,6 +975,7 @@ me.setName(meInfo.name);
   cam.yaw = Math.atan2(-me.pos.x, -me.pos.z);
 }
 $('#myName').value = meInfo.name;
+$('#gateName').value = meInfo.custom ? meInfo.name : '';
 $('#myName').addEventListener('change', (e) => {
   let n = e.target.value.trim().slice(0, 16) || randomName();
   if (hasBad(n)) { toast('이름에 쓸 수 없는 말이 있어요'); n = meInfo.name; }
